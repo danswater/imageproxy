@@ -32,7 +32,6 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/gregjones/httpcache"
-	tphttp "willnorris.com/go/imageproxy/third_party/http"
 )
 
 // Proxy serves image requests.
@@ -95,19 +94,27 @@ func NewProxy(transport http.RoundTripper, cache Cache) *Proxy {
 
 // ServeHTTP handles incoming requests.
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path == "/favicon.ico" {
-		return // ignore favicon requests
-	}
+	h := http.NewServeMux()
 
-	if r.URL.Path == "/health-check" {
-		fmt.Fprint(w, "OK")
-		return
-	}
+	// TODO: company-profile must be part of DefaultBaseURL
+	h.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+		uri := "/16x16/" + p.DefaultBaseURL.String() + "company-profile/favicon.ico";
+		u, err := url.Parse(uri)
+		if err != nil {
+			return
+		}
 
-	var h http.Handler = http.HandlerFunc(p.serveImage)
-	if p.Timeout > 0 {
-		h = tphttp.TimeoutHandler(h, p.Timeout, "Gateway timeout waiting for remote resource.")
-	}
+		r.URL = u
+
+		p.serveImage( w, r )
+	});
+
+	h.HandleFunc("/health-check", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint( w, "OK")
+	})
+
+	h.HandleFunc("/", p.serveImage)
+
 	h.ServeHTTP(w, r)
 }
 
@@ -292,6 +299,7 @@ func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, er
 	}
 
 	u := *req.URL
+
 	u.Fragment = ""
 	resp, err := t.CachingClient.Get(u.String())
 	if err != nil {
