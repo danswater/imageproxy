@@ -32,6 +32,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/gregjones/httpcache"
+	tphttp "willnorris.com/go/imageproxy/third_party/http"
 )
 
 // Proxy serves image requests.
@@ -94,10 +95,7 @@ func NewProxy(transport http.RoundTripper, cache Cache) *Proxy {
 
 // ServeHTTP handles incoming requests.
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	h := http.NewServeMux()
-
-	// TODO: company-profile must be part of DefaultBaseURL
-	h.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path == "/favicon.ico" {
 		uri := "/16x16/" + p.DefaultBaseURL.String() + "company-profile/favicon.ico";
 		u, err := url.Parse(uri)
 		if err != nil {
@@ -105,16 +103,17 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		r.URL = u
+	}
 
-		p.serveImage( w, r )
-	});
+	if r.URL.Path == "/health-check" {
+		fmt.Fprint(w, "OK")
+		return
+	}
 
-	h.HandleFunc("/health-check", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint( w, "OK")
-	})
-
-	h.HandleFunc("/", p.serveImage)
-
+	var h http.Handler = http.HandlerFunc(p.serveImage)
+	if p.Timeout > 0 {
+		h = tphttp.TimeoutHandler(h, p.Timeout, "Gateway timeout waiting for remote resource.")
+	}
 	h.ServeHTTP(w, r)
 }
 
