@@ -96,13 +96,7 @@ func NewProxy(transport http.RoundTripper, cache Cache) *Proxy {
 // ServeHTTP handles incoming requests.
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path == "/favicon.ico" {
-		uri := "/16x16/" + p.DefaultBaseURL.String() + "company-profile/favicon.ico";
-		u, err := url.Parse(uri)
-		if err != nil {
-			return
-		}
-
-		r.URL = u
+		return // ignore favicon requests
 	}
 
 	if r.URL.Path == "/health-check" {

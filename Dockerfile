@@ -1,8 +1,10 @@
-FROM google/golang
+FROM golang:1.9 as build
 MAINTAINER Sevki <s@sevki.org>
 
 ADD . /go/src/willnorris.com/go/imageproxy
-RUN go get willnorris.com/go/imageproxy/cmd/imageproxy
+WORKDIR /go/src/willnorris.com/go/imageproxy/cmd/imageproxy
+RUN go install
+WORKDIR /
 
 CMD []
 ENTRYPOINT ["/go/bin/imageproxy"]
